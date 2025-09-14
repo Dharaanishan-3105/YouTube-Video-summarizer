@@ -1,0 +1,13 @@
+streamlit>=1.28.0
+youtube-transcript-api>=0.6.1
+yt-dlp>=2023.9.24
+openai-whisper>=20231117
+torch>=2.0.0
+transformers>=4.30.0
+nltk>=3.8.1
+spacy>=3.6.0
+requests>=2.31.0
+Pillow>=10.0.0
+pytube>=15.0.0
+numpy>=1.24.0
+pandas>=2.0.0
