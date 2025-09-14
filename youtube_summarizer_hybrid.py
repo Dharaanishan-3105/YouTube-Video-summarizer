@@ -322,7 +322,11 @@ class HybridYouTubeSummarizer:
                 print("✅ Transcript extracted from YouTube captions")
                 return transcript
             except Exception as e:
-                print(f"❌ YouTube transcript not available: {e}")
+                error_msg = str(e).lower()
+                if "blocked" in error_msg or "ip" in error_msg or "cloud" in error_msg:
+                    print("🚫 YouTube is blocking cloud IPs - using Whisper fallback")
+                else:
+                    print(f"❌ YouTube transcript not available: {e}")
                 print("🔄 Falling back to Whisper (tiny model)...")
                 
                 # Fallback to Whisper with tiny model
@@ -338,11 +342,14 @@ class HybridYouTubeSummarizer:
             if not self.models_initialized:
                 self._initialize_models()
             
+            print("🎤 Downloading audio for Whisper transcription...")
+            
             # Download audio using yt-dlp with optimized settings
             ydl_opts = {
                 'format': 'bestaudio[ext=mp3]/bestaudio[ext=m4a]/bestaudio',
                 'outtmpl': 'temp_audio.%(ext)s',
                 'quiet': True,
+                'no_warnings': True,
             }
             
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -360,6 +367,7 @@ class HybridYouTubeSummarizer:
                 print("❌ No audio file found after download")
                 return None
             
+            print("🤖 Transcribing with Whisper (tiny model)...")
             # Transcribe with tiny Whisper model
             result = self.whisper_model.transcribe(audio_file)
             
@@ -374,7 +382,7 @@ class HybridYouTubeSummarizer:
             return result["text"]
             
         except Exception as e:
-            print(f"Error with Whisper transcription: {e}")
+            print(f"❌ Error with Whisper transcription: {e}")
             return None
     
     def preprocess_transcript(self, transcript):
@@ -739,12 +747,14 @@ def main():
             if not transcript:
                 st.error("❌ Could not extract video content. This could be due to:")
                 st.markdown("""
+                - **YouTube is blocking cloud IPs** (common on Streamlit Cloud)
                 - **No captions available** for this video
                 - **Audio download failed** (network issue)
                 - **Video is private or restricted**
                 - **Audio format not supported**
                 
-                **💡 Try a different video with captions or check your internet connection.**
+                **💡 The app will automatically try Whisper transcription as a fallback.**
+                **If it still fails, try a different video or check your internet connection.**
                 """)
                 return
             
