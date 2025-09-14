@@ -239,10 +239,9 @@ class HybridYouTubeSummarizer:
             try:
                 self.nlp = spacy.load("en_core_web_sm")
             except OSError:
-                print("spaCy English model not found. Installing...")
-                import subprocess
-                subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"], check=True)
-                self.nlp = spacy.load("en_core_web_sm")
+                print("spaCy English model not found. Using basic tokenization...")
+                # Fallback to basic text processing without spaCy
+                self.nlp = None
             
             self.models_initialized = True
             print("✅ All models initialized successfully!")
@@ -556,26 +555,41 @@ class HybridYouTubeSummarizer:
             return f"Error processing video content: {str(e)}"
     
     def _extract_keywords(self, text):
-        """Extract key topics using spaCy."""
+        """Extract key topics using spaCy or fallback method."""
         try:
             if not self.models_initialized:
                 self._initialize_models()
             
-            # Use spaCy for keyword extraction
-            doc = self.nlp(text)
-            
-            # Extract nouns and proper nouns
-            keywords = []
-            for token in doc:
-                if (token.pos_ in ['NOUN', 'PROPN'] and 
-                    not token.is_stop and 
-                    not token.is_punct and 
-                    len(token.text) > 2):
-                    keywords.append(token.lemma_.lower())
-            
-            # Count frequency and return top keywords
-            keyword_counts = Counter(keywords)
-            return [word for word, count in keyword_counts.most_common(10)]
+            # Use spaCy if available
+            if self.nlp is not None:
+                doc = self.nlp(text)
+                keywords = []
+                for token in doc:
+                    if (token.pos_ in ['NOUN', 'PROPN'] and 
+                        not token.is_stop and 
+                        not token.is_punct and 
+                        len(token.text) > 2):
+                        keywords.append(token.lemma_.lower())
+                keyword_counts = Counter(keywords)
+                return [word for word, count in keyword_counts.most_common(10)]
+            else:
+                # Fallback: simple keyword extraction using NLTK
+                import re
+                from nltk.corpus import stopwords
+                
+                # Download stopwords if not available
+                try:
+                    stop_words = set(stopwords.words('english'))
+                except LookupError:
+                    import nltk
+                    nltk.download('stopwords', quiet=True)
+                    stop_words = set(stopwords.words('english'))
+                
+                # Simple keyword extraction
+                words = re.findall(r'\b[a-zA-Z]{3,}\b', text.lower())
+                keywords = [word for word in words if word not in stop_words]
+                keyword_counts = Counter(keywords)
+                return [word for word, count in keyword_counts.most_common(10)]
             
         except Exception as e:
             print(f"Error extracting keywords: {e}")
