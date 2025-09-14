@@ -307,10 +307,14 @@ class HybridYouTubeSummarizer:
         try:
             video_id = self.extract_video_id(url)
             if not video_id:
+                print(f"❌ Could not extract video ID from URL: {url}")
                 return None
+            
+            print(f"🔍 Video ID extracted: {video_id}")
             
             # Try to get transcript from YouTube first (no internet for AI)
             try:
+                print("📝 Attempting to fetch YouTube captions...")
                 api = youtube_transcript_api.YouTubeTranscriptApi()
                 transcript_list = api.fetch(video_id)
                 formatter = TextFormatter()
@@ -318,14 +322,14 @@ class HybridYouTubeSummarizer:
                 print("✅ Transcript extracted from YouTube captions")
                 return transcript
             except Exception as e:
-                print(f"YouTube transcript not available: {e}")
+                print(f"❌ YouTube transcript not available: {e}")
                 print("🔄 Falling back to Whisper (tiny model)...")
                 
                 # Fallback to Whisper with tiny model
                 return self._extract_with_whisper(url)
                 
         except Exception as e:
-            print(f"Error extracting transcript: {e}")
+            print(f"❌ Error extracting transcript: {e}")
             return None
     
     def _extract_with_whisper(self, url):
@@ -712,6 +716,24 @@ def main():
             # Step 2: Extract transcript
             status_text.text("📝 Extracting video content...")
             progress_bar.progress(30)
+            
+            # Add debug information
+            with st.expander("🔍 Debug Information", expanded=False):
+                st.write(f"**Video URL:** {video_url}")
+                video_id = st.session_state.summarizer.extract_video_id(video_url)
+                st.write(f"**Video ID:** {video_id}")
+                
+                # Test YouTube transcript API directly
+                try:
+                    import youtube_transcript_api
+                    api = youtube_transcript_api.YouTubeTranscriptApi()
+                    transcript_list = api.fetch(video_id)
+                    st.write(f"**Available transcripts:** {len(transcript_list)} segments")
+                    st.write("**First few segments:**")
+                    for i, segment in enumerate(transcript_list[:3]):
+                        st.write(f"  {i+1}. {segment['text'][:100]}...")
+                except Exception as e:
+                    st.write(f"**Transcript API Error:** {str(e)}")
             
             transcript = st.session_state.summarizer.extract_transcript(video_url)
             if not transcript:
